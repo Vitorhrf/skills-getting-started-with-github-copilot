@@ -12,6 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Clear loading message
       activitiesList.innerHTML = "";
+      activitySelect.innerHTML = '<option value="">-- Select an activity --</option>';
 
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
@@ -24,8 +25,46 @@ document.addEventListener("DOMContentLoaded", () => {
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
-          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <p><strong>Availability:</strong> <span class="availability">${spotsLeft} spots left</span></p>
+          <div class="participants">
+            <strong>Participants:</strong>
+            <ul class="participants-list"></ul>
+          </div>
         `;
+
+        const participantsList = activityCard.querySelector(".participants-list");
+        details.participants.forEach((participant) => {
+          const participantItem = document.createElement("li");
+          const participantEmail = document.createElement("span");
+          const removeButton = document.createElement("button");
+
+          participantEmail.textContent = participant;
+          removeButton.type = "button";
+          removeButton.className = "remove-participant";
+          removeButton.setAttribute("aria-label", `Unregister ${participant}`);
+          removeButton.title = "Unregister participant";
+          removeButton.innerHTML = "&#128465;";
+          removeButton.addEventListener("click", async () => {
+            const response = await fetch(
+              `/activities/${encodeURIComponent(name)}/signup?email=${encodeURIComponent(participant)}`,
+              { method: "DELETE" }
+            );
+
+            if (response.ok) {
+              participantItem.remove();
+              details.participants.splice(details.participants.indexOf(participant), 1);
+              activityCard.querySelector(".availability").textContent =
+                `${details.max_participants - details.participants.length} spots left`;
+              const result = await response.json();
+              messageDiv.textContent = result.message;
+              messageDiv.className = "success";
+              messageDiv.classList.remove("hidden");
+            }
+          });
+
+          participantItem.append(participantEmail, removeButton);
+          participantsList.appendChild(participantItem);
+        });
 
         activitiesList.appendChild(activityCard);
 
@@ -59,6 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const result = await response.json();
 
       if (response.ok) {
+        await fetchActivities();
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
